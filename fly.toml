@@ -20,3 +20,5 @@ primary_region = 'ams'
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 256
+fly secrets
+vly_live_DaMNW-UDFjftwbZCTwHL1sb91czzEXqsGjF2NSuwrOk
