@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Video Dubber</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #f9f9f9; }
+        h2 { text-align: center; }
+        .card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, select, button { display: block; width: 100%; margin: 1rem 0; padding: 0.8rem; font-size: 1rem; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { background: #2563eb; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #999; }
+        #status { margin-top: 1.5rem; font-weight: bold; text-align: center; padding: 1rem; background: #eef; border-radius: 5px; }
+        #downloadLink { display: none; text-align: center; margin-top: 1rem; font-size: 1.1rem; color: #2563eb; }
+    </style>
+</head>
+<body>
+    <h2>🎬 Dub Video to Hindi / Urdu</h2>
+    <div class="card">
+        <input type="file" id="videoFile" accept="video/*">
+        <select id="lang">
+            <option value="hindi">Hindi</option>
+            <option value="urdu">Urdu</option>
+        </select>
+        <button id="dubBtn" onclick="startDub()">Start Dubbing</button>
+        <p id="status">Waiting for you to upload a video...</p>
+        <a id="downloadLink" href="#">📥 Download Dubbed Video</a>
+    </div>
+
+    <script>
+        // ⚠️ IMPORTANT: You will replace this URL in Step 5.
+        const API_URL = "https://your-dubbing-backend.fly.dev";
+
+        async function startDub() {
+            const file = document.getElementById('videoFile').files[0];
+            const lang = document.getElementById('lang').value;
+            const btn = document.getElementById('dubBtn');
+            const status = document.getElementById('status');
+
+            if (!file) return alert('Please select a video file first.');
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('target_lang', lang);
+
+            btn.disabled = true;
+            status.innerText = "Uploading video to the manager (this may take a moment)...";
+
+            try {
+                const response = await fetch(`${API_URL}/dub`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                pollStatus(data.job_id);
+            } catch (e) {
+                status.innerText = "❌ Error: Could not reach the backend. Is it running?";
+                btn.disabled = false;
+            }
+        }
+
+        async function pollStatus(jobId) {
+            const status = document.getElementById('status');
+            const btn = document.getElementById('dubBtn');
+
+            const response = await fetch(`${API_URL}/status/${jobId}`);
+            const data = await response.json();
+            
+            // Show a simple message based on what the manager is doing
+            const messages = {
+                'queued': '📋 In queue...',
+                'extracting_audio': '🎧 Extracting audio...',
+                'transcribing': '📝 Transcribing speech...',
+                'translating': '🌐 Translating to target language...',
+                'generating_speech': '🗣️ Generating new voice...',
+                'lip_syncing': '👄 The Chef is making lips move (this is the slow part)...',
+                'completed': '✅ Done! Your video is ready.'
+            };
+            status.innerText = messages[data.status] || `⏳ ${data.status}...`;
+
+            if (data.status === 'completed') {
+                document.getElementById('downloadLink').href = `${API_URL}/download/${jobId}`;
+                document.getElementById('downloadLink').style.display = 'block';
+                btn.disabled = false;
+            } else if (data.status !== 'failed') {
+                setTimeout(() => pollStatus(jobId), 4000); // Check again in 4 seconds
+            } else {
+                status.innerText = "❌ Failed: " + (data.error || "Unknown error");
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
